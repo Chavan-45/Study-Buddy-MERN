@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "target": "studybuddy",
     "public": "dist",
     "ignore": [
       "firebase.json",

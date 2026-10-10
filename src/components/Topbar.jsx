@@ -3,7 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Bell, Menu, User, LogOut } from 'lucide-react';
 import { subscribeToNotifications } from '../services/notificationService';
 import NotificationPanel from './NotificationPanel';
-import { logoutUser } from '../firebase';
+import { logoutUser } from '../services/authService';
 
 export default function Topbar({ currentUser, onLogout, onToggleSidebar }) {
   const location = useLocation();

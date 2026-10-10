@@ -1,0 +1,38 @@
+{
+  "name": "study-buddy-roulette-backend",
+  "version": "1.0.0",
+  "description": "Express and MongoDB Atlas backend for Study Buddy Roulette MERN application",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test:matching": "node tests/test_matching_skills_bugfix.js",
+    "test:meet": "node tests/test_meet_link_bugfix.js",
+    "test:security": "node tests/test_phase5_4_security_hardening.js",
+    "test:verification": "node tests/test_phase5_3_suite.js",
+    "test:e2e": "node tests/test_phase5_2_e2e_suite.js",
+    "test:diagnostic": "node tests/test_smtp_diagnostic.js"
+  },
+  "keywords": [
+    "mern",
+    "study-buddy",
+    "express",
+    "mongodb",
+    "mongoose"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "nodemailer": "^10.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

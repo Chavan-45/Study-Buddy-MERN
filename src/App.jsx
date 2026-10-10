@@ -9,23 +9,18 @@ import SessionsPage from './pages/SessionsPage';
 import StudyHistoryPage from './pages/StudyHistoryPage';
 import ChatPage from './pages/ChatPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import { auth, isFirebaseConfigured, logoutUser } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { subscribeToAuthState, logoutUser } from './services/authService';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    if (isFirebaseConfigured && auth) {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setCurrentUser(user);
-        setInitializing(false);
-      });
-      return () => unsubscribe();
-    } else {
+    const unsubscribe = subscribeToAuthState((user) => {
+      setCurrentUser(user);
       setInitializing(false);
-    }
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -48,6 +43,17 @@ export default function App() {
                 setCurrentUser={setCurrentUser}
               />
             )
+          }
+        />
+
+        {/* Email Verification Link Landing Page */}
+        <Route
+          path="/verify-email"
+          element={
+            <AuthPage
+              currentUser={currentUser}
+              setCurrentUser={setCurrentUser}
+            />
           }
         />
 

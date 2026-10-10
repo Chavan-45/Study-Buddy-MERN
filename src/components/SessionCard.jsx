@@ -4,6 +4,8 @@ import { formatTime12Hour } from '../utils/timeUtils';
 import { hasUserRatedSession } from '../services/ratingService';
 import { 
   updateSessionMeetingPoint, 
+  updateSessionMeetingLink,
+  validateGoogleMeetUrl,
   endOnlineSession,
   respondToSessionActionRequest
 } from '../services/sessionService';
@@ -31,7 +33,8 @@ import {
   Video,
   VideoOff,
   ExternalLink,
-  Edit2
+  Edit2,
+  AlertCircle
 } from 'lucide-react';
 
 const normalizeMode = (m) => String(m || '').trim().toLowerCase();
@@ -67,6 +70,13 @@ export default function SessionCard({
   const [isSavingPoint, setIsSavingPoint] = useState(false);
   const [pointError, setPointError] = useState('');
 
+  // Meeting Link State
+  const [meetingUrlInput, setMeetingUrlInput] = useState(session?.meetingUrl || '');
+  const [localMeetingUrl, setLocalMeetingUrl] = useState(session?.meetingUrl || '');
+  const [isEditingMeetingLink, setIsEditingMeetingLink] = useState(false);
+  const [isSavingLink, setIsSavingLink] = useState(false);
+  const [linkError, setLinkError] = useState('');
+
   const [fetchedBuddy, setFetchedBuddy] = useState(null);
 
   const isLearner = session?.learnerId === currentUser?.uid || session?.requesterId === currentUser?.uid;
@@ -82,8 +92,16 @@ export default function SessionCard({
   const isOnlineSupported = supportsOnline(session?.mode);
   const isOfflineSupported = supportsOffline(session?.mode);
 
-  const onlineStatus = session?.onlineSessionStatus || 'not_started';
-  const isLive = onlineStatus === 'live';
+  useEffect(() => {
+    if (session?.meetingUrl !== undefined) {
+      setLocalMeetingUrl(session.meetingUrl || '');
+      setMeetingUrlInput(session.meetingUrl || '');
+    }
+  }, [session?.meetingUrl]);
+
+  const hasMeetingLink = Boolean(localMeetingUrl && localMeetingUrl.trim());
+  const onlineStatus = session?.onlineSessionStatus;
+  const isLive = hasMeetingLink && onlineStatus !== 'ended';
   const isEnded = onlineStatus === 'ended';
 
   const actionReq = session?.sessionActionRequest;
@@ -198,6 +216,35 @@ export default function SessionCard({
     }
   };
 
+  const handleSaveMeetingLink = async (e) => {
+    if (e) e.preventDefault();
+    if (isSavingLink) return;
+    setLinkError('');
+
+    const trimmed = (meetingUrlInput || '').trim();
+    if (!trimmed) {
+      setLinkError('Please enter a Google Meet link.');
+      return;
+    }
+
+    if (!validateGoogleMeetUrl(trimmed)) {
+      setLinkError('Please enter a valid Google Meet link (e.g. https://meet.google.com/abc-defg-hij).');
+      return;
+    }
+
+    setIsSavingLink(true);
+    try {
+      await updateSessionMeetingLink(session.id, trimmed, currentUser.uid, session);
+      setLocalMeetingUrl(trimmed);
+      setIsEditingMeetingLink(false);
+    } catch (err) {
+      console.error('Failed to save meeting link:', err);
+      setLinkError(err.message || 'Failed to save meeting link.');
+    } finally {
+      setIsSavingLink(false);
+    }
+  };
+
   const renderStars = (count) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -272,8 +319,8 @@ export default function SessionCard({
       {/* START / JOIN GOOGLE MEET FOR ONLINE & BOTH SESSIONS */}
       {isOnlineSupported && isUpcoming && (
         <div className="online-session-card-block" style={{
-          background: isLive ? '#ecfdf5' : '#fff7ed',
-          border: isLive ? '1px solid #a7f3d0' : '1px solid #ffedd5',
+          background: hasMeetingLink ? '#ecfdf5' : '#fff7ed',
+          border: hasMeetingLink ? '1px solid #a7f3d0' : '1px solid #ffedd5',
           borderRadius: '0.9rem',
           padding: '1rem 1.25rem',
           marginTop: '0.5rem',
@@ -283,7 +330,7 @@ export default function SessionCard({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Video size={18} style={{ color: isLive ? '#059669' : '#ea580c' }} />
+              <Video size={18} style={{ color: hasMeetingLink ? '#059669' : '#ea580c' }} />
               <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1c1917', margin: 0 }}>
                 Online Google Meet Session
               </h4>
@@ -301,89 +348,237 @@ export default function SessionCard({
               alignItems: 'center',
               gap: '0.3rem'
             }}>
-              {isLive && '🔴 Live'}
-              {isEnded && 'Ended'}
-              {!isLive && !isEnded && 'Not Started'}
+              {isLive ? '🔴 Live' : isEnded ? 'Ended' : 'Not Started'}
             </span>
           </div>
 
-          {/* SUB-CONTENT BASED ON ROLE AND MEETING STATUS */}
-          {onlineStatus === 'not_started' && (
+          {/* NO MEETING LINK SAVED YET */}
+          {!hasMeetingLink && (
             <div>
               {isHelper ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: '#57534e' }}>
-                    Create a Google Meet link and start the online session.
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => setShowStartModal(true)}
-                    style={{
-                      width: 'auto',
-                      height: '38px',
-                      fontSize: '0.85rem',
-                      padding: '0 1rem'
-                    }}
-                    id={`btn-start-online-session-${session.id}`}
-                  >
-                    <Video size={16} /> Start Online Session
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  <p style={{ fontSize: '0.85rem', color: '#57534e', margin: 0, lineHeight: 1.45 }}>
+                    You haven't added a Google Meet link yet. Paste your meeting URL below so your learner can join when it's time.
+                  </p>
+                  <form onSubmit={handleSaveMeetingLink} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                    <label 
+                      htmlFor={`input-meet-link-${session.id}`}
+                      style={{ fontSize: '0.82rem', fontWeight: 700, color: '#292524', display: 'block', margin: 0 }}
+                    >
+                      Google Meet URL
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <input
+                        type="url"
+                        id={`input-meet-link-${session.id}`}
+                        value={meetingUrlInput}
+                        onChange={(e) => {
+                          setMeetingUrlInput(e.target.value);
+                          if (linkError) setLinkError('');
+                        }}
+                        placeholder="https://meet.google.com/abc-defg-hij"
+                        className="themed-input"
+                        style={{ height: '38px', fontSize: '0.85rem', flex: 1, minWidth: '220px' }}
+                        disabled={isSavingLink}
+                      />
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={isSavingLink || !meetingUrlInput.trim()}
+                        style={{ height: '38px', fontSize: '0.85rem', width: 'auto', padding: '0 1.1rem', whiteSpace: 'nowrap' }}
+                        id={`btn-save-meet-link-${session.id}`}
+                      >
+                        {isSavingLink ? 'Saving...' : 'Save Meeting Link'}
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {linkError ? (
+                        <span className="field-error" style={{ fontSize: '0.8rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <AlertCircle size={13} /> {linkError}
+                        </span>
+                      ) : <span />}
+                      <a
+                        href="https://meet.google.com/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '0.78rem', color: '#ea580c', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'underline' }}
+                      >
+                        Create new Google Meet <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  </form>
                 </div>
               ) : (
                 <div style={{ fontSize: '0.85rem', color: '#78716c', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Clock size={15} style={{ color: '#ea580c' }} />
-                  Online option available • Waiting for your Study Buddy ({otherUserName}) to start the Google Meet.
+                  <Clock size={15} style={{ color: '#ea580c', flexShrink: 0 }} />
+                  <span>The tutor has not added the meeting link yet. Waiting for your Study Buddy ({otherUserName}) to add the Google Meet link.</span>
                 </div>
               )}
             </div>
           )}
 
-          {isLive && (
+          {/* MEETING LINK SAVED */}
+          {hasMeetingLink && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ fontSize: '0.86rem', color: '#047857', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                <Sparkles size={15} style={{ color: '#059669' }} />
-                Google Meet is live! Both participants can join now.
+                <Sparkles size={15} style={{ color: '#059669', flexShrink: 0 }} />
+                <span>Google Meet link is ready! Both participants can join now.</span>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => window.open(session.meetingUrl, '_blank', 'noopener,noreferrer')}
-                  style={{
-                    width: 'auto',
-                    height: '40px',
-                    fontSize: '0.88rem',
-                    padding: '0 1.2rem',
-                    background: '#059669',
-                    fontWeight: 800
-                  }}
-                  id={`btn-join-meet-${session.id}`}
-                >
-                  <ExternalLink size={16} /> Join Google Meet
-                </button>
+              {/* SAVED LINK DISPLAY BOX */}
+              <div style={{
+                background: '#ffffff',
+                border: '1px solid #d1fae5',
+                borderRadius: '0.65rem',
+                padding: '0.65rem 0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.6rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', minWidth: '200px', flex: 1 }}>
+                  <Video size={16} style={{ color: '#059669', flexShrink: 0 }} />
+                  <a
+                    href={localMeetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '0.85rem',
+                      color: '#047857',
+                      fontWeight: 600,
+                      textDecoration: 'underline',
+                      wordBreak: 'break-all'
+                    }}
+                    id={`link-meet-url-${session.id}`}
+                  >
+                    {localMeetingUrl}
+                  </a>
+                </div>
 
-                {isHelper && (
+                <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', alignItems: 'center' }}>
                   <button
                     type="button"
-                    className="btn-secondary"
-                    onClick={handleEndOnlineSession}
-                    disabled={isEndingMeeting}
+                    className="btn-primary"
+                    onClick={() => window.open(localMeetingUrl, '_blank', 'noopener,noreferrer')}
                     style={{
                       width: 'auto',
-                      height: '40px',
-                      fontSize: '0.82rem',
-                      padding: '0 0.95rem',
-                      borderColor: '#fca5a5',
-                      color: '#dc2626'
+                      height: '38px',
+                      fontSize: '0.85rem',
+                      padding: '0 1.1rem',
+                      background: '#059669',
+                      fontWeight: 700
                     }}
-                    id={`btn-end-online-session-${session.id}`}
+                    id={`btn-join-meet-${session.id}`}
                   >
-                    <VideoOff size={15} /> {isEndingMeeting ? 'Ending...' : 'End Online Session'}
+                    <ExternalLink size={15} /> Join Google Meet
                   </button>
-                )}
+
+                  {isHelper && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setMeetingUrlInput(localMeetingUrl);
+                        setIsEditingMeetingLink(prev => !prev);
+                        setLinkError('');
+                      }}
+                      style={{
+                        width: 'auto',
+                        height: '38px',
+                        fontSize: '0.82rem',
+                        padding: '0 0.85rem',
+                        borderColor: '#cbd5e1'
+                      }}
+                      id={`btn-edit-meet-link-${session.id}`}
+                    >
+                      <Edit2 size={13} /> {isEditingMeetingLink ? 'Cancel' : 'Update Link'}
+                    </button>
+                  )}
+
+                  {isHelper && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleEndOnlineSession}
+                      disabled={isEndingMeeting}
+                      style={{
+                        width: 'auto',
+                        height: '38px',
+                        fontSize: '0.82rem',
+                        padding: '0 0.85rem',
+                        borderColor: '#fca5a5',
+                        color: '#dc2626'
+                      }}
+                      id={`btn-end-online-session-${session.id}`}
+                    >
+                      <VideoOff size={14} /> {isEndingMeeting ? 'Ending...' : 'End Online Session'}
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* TUTOR INLINE EDIT FORM */}
+              {isHelper && isEditingMeetingLink && (
+                <form onSubmit={handleSaveMeetingLink} style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '0.65rem',
+                  padding: '0.75rem 0.9rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.45rem'
+                }}>
+                  <label 
+                    htmlFor={`input-edit-meet-link-${session.id}`}
+                    style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155', display: 'block', margin: 0 }}
+                  >
+                    Update Google Meet URL
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input
+                      type="url"
+                      id={`input-edit-meet-link-${session.id}`}
+                      value={meetingUrlInput}
+                      onChange={(e) => {
+                        setMeetingUrlInput(e.target.value);
+                        if (linkError) setLinkError('');
+                      }}
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      className="themed-input"
+                      style={{ height: '36px', fontSize: '0.85rem', flex: 1, minWidth: '220px' }}
+                      disabled={isSavingLink}
+                    />
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={isSavingLink || !meetingUrlInput.trim()}
+                      style={{ height: '36px', fontSize: '0.82rem', width: 'auto', padding: '0 1rem' }}
+                      id={`btn-submit-update-meet-${session.id}`}
+                    >
+                      {isSavingLink ? 'Saving...' : 'Update Meeting Link'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setIsEditingMeetingLink(false);
+                        setMeetingUrlInput(localMeetingUrl);
+                        setLinkError('');
+                      }}
+                      style={{ height: '36px', fontSize: '0.82rem', width: 'auto', padding: '0 0.8rem' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {linkError && (
+                    <span className="field-error" style={{ fontSize: '0.8rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertCircle size={13} /> {linkError}
+                    </span>
+                  )}
+                </form>
+              )}
             </div>
           )}
 

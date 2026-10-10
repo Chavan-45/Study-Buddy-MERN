@@ -150,12 +150,29 @@ export default function DashboardPage({ currentUser }) {
 
       {/* COMPACT INCOMPLETE PROFILE NOTICE */}
       {!isComplete && (
-        <div className="compact-profile-progress-bar">
+        <div className="compact-profile-progress-bar" role="region" aria-label="Profile completion notice">
           <div className="compact-progress-info">
-            <span className="compact-percentage">{percentage}%</span>
+            <div className="compact-progress-dial" aria-hidden="true">
+              <svg className="progress-ring-svg" viewBox="0 0 36 36">
+                <path
+                  className="progress-ring-bg"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className="progress-ring-fill"
+                  strokeDasharray={`${percentage}, 100`}
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <span className="compact-percentage">{percentage}%</span>
+            </div>
+
             <div className="compact-text-wrap">
-              <strong>Profile Incomplete</strong>
-              <p>
+              <div className="compact-header-row">
+                <strong className="compact-title">Profile Incomplete</strong>
+                <span className="compact-badge-warn">Action Required</span>
+              </div>
+              <p className="compact-missing-text">
                 {completionStats.missingFields.length > 0
                   ? `Missing: ${completionStats.missingFields.join(', ')}`
                   : 'Complete remaining fields to unlock study buddy matching.'}
@@ -163,16 +180,22 @@ export default function DashboardPage({ currentUser }) {
             </div>
           </div>
 
-          <div className="compact-bar-track">
+          <div className="compact-bar-track" aria-hidden="true">
             <div
               className="compact-bar-fill"
               style={{ width: `${percentage}%` }}
             ></div>
           </div>
 
-          <Link to="/profile" className="btn-compact-complete">
-            Complete Profile <ArrowRight size={15} />
-          </Link>
+          <div className="compact-footer-row">
+            <span className="compact-hint">
+              <Sparkles size={14} style={{ color: 'var(--primary)' }} />
+              Complete your profile to enable roulette study partner matching.
+            </span>
+            <Link to="/profile" className="btn-compact-complete" id="btn-dashboard-complete-profile">
+              Complete Profile <ArrowRight size={15} />
+            </Link>
+          </div>
         </div>
       )}
 
@@ -263,7 +286,7 @@ export default function DashboardPage({ currentUser }) {
                     <MessageSquare size={14} /> Chat
                   </button>
                   
-                  {nextSession.mode === 'Online' && nextSession.meetingUrl && nextSession.onlineSessionStatus === 'live' && (
+                  {(nextSession.mode === 'Online' || nextSession.mode === 'Both') && nextSession.meetingUrl && (
                     <button
                       type="button"
                       className="btn-secondary"

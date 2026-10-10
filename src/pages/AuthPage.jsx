@@ -1,9 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthForm from '../components/AuthForm';
 import VerificationScreen from '../components/VerificationScreen';
 
 export default function AuthPage({ currentUser, setCurrentUser }) {
+  const [searchParams] = useSearchParams();
+  const tokenParam = searchParams.get('token');
+  const navigate = useNavigate();
+
   const [viewState, setViewState] = useState(() => {
+    if (tokenParam) {
+      return 'verification';
+    }
     if (currentUser) {
       return currentUser.emailVerified ? 'dashboard' : 'verification';
     }
@@ -12,9 +20,21 @@ export default function AuthPage({ currentUser, setCurrentUser }) {
 
   const [unverifiedUser, setUnverifiedUser] = useState(null);
 
+  // If currentUser is already verified, immediately navigate to dashboard
+  useEffect(() => {
+    if (currentUser && currentUser.emailVerified && !tokenParam) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [currentUser, tokenParam, navigate]);
+
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    setViewState('dashboard');
+    if (user.emailVerified) {
+      navigate('/dashboard', { replace: true });
+    } else {
+      setUnverifiedUser(user);
+      setViewState('verification');
+    }
   };
 
   const handleRequireVerification = (user) => {
@@ -24,8 +44,19 @@ export default function AuthPage({ currentUser, setCurrentUser }) {
 
   const handleBackToLogin = () => {
     setUnverifiedUser(null);
-    setCurrentUser(null);
     setViewState('auth');
+    if (window.location.pathname === '/verify-email') {
+      navigate('/', { replace: true });
+    }
+  };
+
+  const handleVerified = (verifiedUser) => {
+    if (verifiedUser) {
+      setCurrentUser(verifiedUser);
+    }
+    if (verifiedUser?.emailVerified) {
+      navigate('/dashboard', { replace: true });
+    }
   };
 
   return (
@@ -60,6 +91,7 @@ export default function AuthPage({ currentUser, setCurrentUser }) {
             <VerificationScreen
               user={unverifiedUser || currentUser}
               onBackToLogin={handleBackToLogin}
+              onVerified={handleVerified}
             />
           )}
         </div>

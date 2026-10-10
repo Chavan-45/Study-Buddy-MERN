@@ -38,7 +38,17 @@ export default function ProtectedRoute({ currentUser, initializing, onLogout, ch
             onToggleSidebar={() => setSidebarOpen(prev => !prev)} 
           />
           <main className="main-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-            <VerificationScreen user={currentUser} onBackToLogin={onLogout} />
+            <VerificationScreen 
+              user={currentUser} 
+              onBackToLogin={onLogout} 
+              onVerified={(verifiedUser) => {
+                if (verifiedUser) {
+                  window.dispatchEvent(
+                    new CustomEvent('study_buddy_auth_changed', { detail: verifiedUser })
+                  );
+                }
+              }} 
+            />
           </main>
         </div>
       </div>

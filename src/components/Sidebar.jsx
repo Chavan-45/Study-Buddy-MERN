@@ -10,7 +10,7 @@ import {
   LogOut,
   X
 } from 'lucide-react';
-import { logoutUser } from '../firebase';
+import { logoutUser } from '../services/authService';
 
 export default function Sidebar({ currentUser, onLogout, isOpen, onClose }) {
   const location = useLocation();

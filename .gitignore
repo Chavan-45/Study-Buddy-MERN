@@ -23,11 +23,23 @@ dist-ssr
 *.sln
 *.sw?
 
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Dependencies and build output
 node_modules/
 dist/
+dist-ssr/
 .firebase/
+
+# Environment files
 .env
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local

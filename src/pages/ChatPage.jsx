@@ -6,8 +6,7 @@ import {
   subscribeToMessages 
 } from '../services/chatService';
 import { formatTime12Hour } from '../utils/timeUtils';
-import { isFirebaseConfigured, db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { getSessionById } from '../services/sessionService';
 import { 
   ArrowLeft, 
   Send, 
@@ -37,20 +36,7 @@ export default function ChatPage({ currentUser }) {
       if (!sessionId || !currentUser?.uid) return;
       try {
         setLoadingSession(true);
-        let sessData = null;
-
-        if (isFirebaseConfigured && db) {
-          const docRef = doc(db, "sessions", sessionId);
-          const snap = await getDoc(docRef);
-          if (snap.exists()) {
-            sessData = { id: snap.id, ...snap.data() };
-          }
-        } else {
-          // Demo Mode fallback
-          const raw = localStorage.getItem('study_buddy_mock_sessions');
-          const mockList = raw ? JSON.parse(raw) : [];
-          sessData = mockList.find(s => s.id === sessionId) || null;
-        }
+        const sessData = await getSessionById(sessionId);
 
         if (!sessData) {
           setError("Study session not found.");

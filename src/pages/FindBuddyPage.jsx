@@ -58,8 +58,12 @@ export default function FindBuddyPage({ currentUser }) {
     setLastCriteria(criteria);
 
     try {
-      const rawCandidates = await getPotentialBuddies(currentUser.uid, criteria.subject);
-      const rankedMatches = findBestMatches(criteria, rawCandidates);
+      const searchCriteria = {
+        ...criteria,
+        currentUserId: currentUser?.uid,
+      };
+      const rawCandidates = await getPotentialBuddies(currentUser.uid, searchCriteria);
+      const rankedMatches = findBestMatches(searchCriteria, rawCandidates);
 
       setMatches(rankedMatches);
       setSelectedIndex(0);

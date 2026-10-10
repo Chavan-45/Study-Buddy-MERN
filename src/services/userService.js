@@ -1,111 +1,4 @@
-import { db, isFirebaseConfigured } from '../firebase';
-import { doc, getDoc, setDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
-
-const MOCK_STORAGE_KEY = 'study_buddy_roulette_mock_users';
-
-const DEMO_CANDIDATES = [
-  {
-    uid: 'demo-priya-01',
-    name: 'Priya Sharma',
-    email: 'priya@university.edu',
-    phone: '9876543210',
-    department: 'CSE',
-    year: '3rd Year',
-    bio: 'Passionate about Machine Learning, AI algorithms, and Python data science.',
-    canHelp: [
-      { subject: 'Machine Learning', level: 'Advanced' },
-      { subject: 'Python', level: 'Advanced' },
-      { subject: 'Data Structures', level: 'Intermediate' }
-    ],
-    availability: [
-      { day: 'Monday', startTime: '16:00', endTime: '19:00' },
-      { day: 'Wednesday', startTime: '17:00', endTime: '20:00' }
-    ],
-    mode: 'Both',
-    location: 'College Library',
-    profileCompleted: true
-  },
-  {
-    uid: 'demo-rahul-02',
-    name: 'Rahul Verma',
-    email: 'rahul.v@university.edu',
-    phone: '9876543211',
-    department: 'IT',
-    year: '2nd Year',
-    bio: 'Frontend enthusiast & Java developer who loves pair programming.',
-    canHelp: [
-      { subject: 'Java', level: 'Advanced' },
-      { subject: 'Machine Learning', level: 'Intermediate' },
-      { subject: 'Web Development', level: 'Advanced' }
-    ],
-    availability: [
-      { day: 'Monday', startTime: '15:00', endTime: '18:00' },
-      { day: 'Friday', startTime: '16:00', endTime: '19:00' }
-    ],
-    mode: 'Offline',
-    location: 'College Library',
-    profileCompleted: true
-  },
-  {
-    uid: 'demo-arjun-03',
-    name: 'Arjun Mehta',
-    email: 'arjun@university.edu',
-    phone: '9876543212',
-    department: 'ECE',
-    year: '4th Year',
-    bio: 'Hardware engineer with strong foundations in C++ & Computer Networks.',
-    canHelp: [
-      { subject: 'Computer Networks', level: 'Advanced' },
-      { subject: 'C++', level: 'Advanced' },
-      { subject: 'Machine Learning', level: 'Beginner' }
-    ],
-    availability: [
-      { day: 'Tuesday', startTime: '14:00', endTime: '17:00' },
-      { day: 'Thursday', startTime: '16:00', endTime: '19:00' }
-    ],
-    mode: 'Online',
-    location: 'CSE Block',
-    profileCompleted: true
-  },
-  {
-    uid: 'demo-sneha-04',
-    name: 'Sneha Patel',
-    email: 'sneha@university.edu',
-    phone: '9876543213',
-    department: 'CSE',
-    year: '2nd Year',
-    bio: 'Database systems and SQL geek. Always eager to collaborate on assignments.',
-    canHelp: [
-      { subject: 'DBMS', level: 'Advanced' },
-      { subject: 'Python', level: 'Intermediate' },
-      { subject: 'Machine Learning', level: 'Intermediate' }
-    ],
-    availability: [
-      { day: 'Monday', startTime: '16:30', endTime: '19:30' },
-      { day: 'Saturday', startTime: '10:00', endTime: '13:00' }
-    ],
-    mode: 'Both',
-    location: 'CSE Block',
-    profileCompleted: true
-  }
-];
-
-function getMockUsers() {
-  try {
-    const data = localStorage.getItem(MOCK_STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveMockUsers(users) {
-  try {
-    localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(users));
-  } catch (err) {
-    console.error("Failed to save mock users", err);
-  }
-}
+import apiClient from './apiClient';
 
 /**
  * Calculates profile completion percentage (excluding 'needHelp')
@@ -164,33 +57,32 @@ export function calculateProfileCompletion(data) {
   };
 }
 
+/**
+ * Fetch student profile by user ID or current user
+ */
 export async function getUserProfile(uid) {
   if (!uid) return null;
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const userRef = doc(db, "users", uid);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        return { uid, ...snap.data() };
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching user profile from Firestore:", error);
-      throw error;
-    }
-  } else {
-    const mockUsers = getMockUsers();
-    if (mockUsers[uid]) {
-      return { uid, ...mockUsers[uid] };
-    }
-    const demoFound = DEMO_CANDIDATES.find(c => c.uid === uid);
-    return demoFound ? { ...demoFound } : null;
+  try {
+    const response = await apiClient.get(`/users/profile/${uid}`);
+    const profile = response.profile || response.user;
+    if (!profile) return null;
+
+    return {
+      uid: profile.uid || profile._id,
+      ...profile,
+    };
+  } catch (error) {
+    console.error('Error fetching student profile from backend:', error);
+    throw error;
   }
 }
 
+/**
+ * Update current student profile in MongoDB Atlas
+ */
 export async function updateUserProfile(uid, profileData) {
-  if (!uid) throw new Error("Invalid user ID");
+  if (!uid) throw new Error('Invalid user ID');
 
   const completionStats = calculateProfileCompletion(profileData);
 
@@ -198,70 +90,72 @@ export async function updateUserProfile(uid, profileData) {
     ...profileData,
     profileCompleted: completionStats.isComplete,
     completionPercentage: completionStats.percentage,
-    updatedAt: isFirebaseConfigured ? serverTimestamp() : new Date().toISOString()
   };
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const userRef = doc(db, "users", uid);
-      await setDoc(userRef, payload, { merge: true });
-      return payload;
-    } catch (error) {
-      console.error("Error updating user profile in Firestore:", error);
-      throw error;
-    }
-  } else {
-    const mockUsers = getMockUsers();
-    mockUsers[uid] = {
-      ...(mockUsers[uid] || {}),
-      ...payload
+  try {
+    const response = await apiClient.put('/users/profile', payload);
+    const updated = response.profile || response.user || payload;
+    return {
+      uid,
+      ...updated,
     };
-    saveMockUsers(mockUsers);
-    return payload;
+  } catch (error) {
+    console.error('Error updating user profile in backend:', error);
+    throw error;
   }
 }
 
-export async function getPotentialBuddies(currentUserId, requestedSubject) {
-  let candidates = [];
+/**
+ * Find potential study buddies for a subject or criteria from MERN backend
+ */
+export async function getPotentialBuddies(currentUserId, criteriaOrSubject) {
+  try {
+    let query = '';
 
-  if (isFirebaseConfigured && db) {
-    try {
-      const usersRef = collection(db, "users");
-      const snapshot = await getDocs(usersRef);
-
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const candidateUid = docSnap.id;
-
-        if (candidateUid !== currentUserId && data.profileCompleted === true) {
-          candidates.push({ uid: candidateUid, ...data });
-        }
-      });
-
-      if (candidates.length === 0) {
-        candidates = DEMO_CANDIDATES.filter(c => c.uid !== currentUserId);
+    if (typeof criteriaOrSubject === 'string' && criteriaOrSubject.trim()) {
+      query = `?subject=${encodeURIComponent(criteriaOrSubject.trim())}`;
+    } else if (criteriaOrSubject && typeof criteriaOrSubject === 'object') {
+      const params = new URLSearchParams();
+      if (criteriaOrSubject.subject) {
+        params.append('subject', String(criteriaOrSubject.subject).trim());
       }
-    } catch (err) {
-      console.error("Firestore candidate search error:", err);
-      candidates = DEMO_CANDIDATES.filter(c => c.uid !== currentUserId);
+      if (criteriaOrSubject.requiredLevel || criteriaOrSubject.level) {
+        params.append('requiredLevel', criteriaOrSubject.requiredLevel || criteriaOrSubject.level);
+      }
+      if (criteriaOrSubject.day) {
+        params.append('day', criteriaOrSubject.day);
+      }
+      if (criteriaOrSubject.startTime) {
+        params.append('startTime', criteriaOrSubject.startTime);
+      }
+      if (criteriaOrSubject.endTime) {
+        params.append('endTime', criteriaOrSubject.endTime);
+      }
+      if (criteriaOrSubject.mode) {
+        params.append('mode', criteriaOrSubject.mode);
+      }
+      if (criteriaOrSubject.location) {
+        params.append('location', criteriaOrSubject.location);
+      }
+      const qs = params.toString();
+      if (qs) query = `?${qs}`;
     }
-  } else {
-    const mockUsers = getMockUsers();
-    const localCandidates = Object.values(mockUsers).filter(
-      u => u.uid !== currentUserId && u.profileCompleted === true
-    );
-    
-    candidates = [...localCandidates, ...DEMO_CANDIDATES.filter(c => c.uid !== currentUserId)];
-  }
 
-  if (requestedSubject) {
-    const normSubject = requestedSubject.trim().toLowerCase();
-    candidates = candidates.filter(c => 
-      Array.isArray(c.canHelp) && c.canHelp.some(
-        skill => skill.subject.trim().toLowerCase() === normSubject
-      )
-    );
-  }
+    const response = await apiClient.get(`/users/buddies${query}`);
 
-  return candidates;
+    // Support response.buddies, response.candidates, or response.matches defensively
+    const rawList =
+      response.buddies ||
+      response.candidates ||
+      (Array.isArray(response.matches) ? response.matches.map((m) => m.candidate) : []) ||
+      [];
+
+    return rawList.map((b) => ({
+      uid: b.uid || b._id,
+      ...b,
+    }));
+  } catch (err) {
+    console.error('Error fetching study buddies from backend:', err);
+    throw err;
+  }
 }

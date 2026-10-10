@@ -17,7 +17,7 @@ import {
   resetUserPassword,
   createFirestoreDocIfVerified,
   getFriendlyErrorMessage 
-} from '../firebase';
+} from '../services/authService';
 
 export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -101,8 +101,8 @@ export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
 
     if (!regData.password) {
       errors.password = "Password cannot be empty.";
-    } else if (regData.password.length < 6) {
-      errors.password = "Password should have at least 6 characters.";
+    } else if (regData.password.length < 8) {
+      errors.password = "Password should have at least 8 characters.";
     }
 
     if (!regData.confirmPassword) {
@@ -143,16 +143,22 @@ export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
     setIsLoading(true);
 
     try {
-      await registerUser({
+      const regRes = await registerUser({
         name: regData.name.trim(),
         email: regData.email.trim(),
         phone: regData.phone.trim(),
         password: regData.password
       });
 
-      setGlobalSuccess(
-        "Account created successfully! A verification link has been sent to your email. Please verify your email before logging in."
-      );
+      if (regRes?.verificationEmailSent === false) {
+        setGlobalError(
+          "Account created, but verification email could not be sent. Please log in and click 'Resend Verification Email'."
+        );
+      } else {
+        setGlobalSuccess(
+          "Account created successfully! You can now log in with your credentials."
+        );
+      }
 
       setRegData({
         name: '',

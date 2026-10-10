@@ -10,7 +10,7 @@ import {
   User, 
   LogOut 
 } from 'lucide-react';
-import { logoutUser } from '../firebase';
+import { logoutUser } from '../services/authService';
 import { subscribeToNotifications } from '../services/notificationService';
 import NotificationPanel from './NotificationPanel';
 

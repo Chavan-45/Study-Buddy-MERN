@@ -1,561 +1,270 @@
-# 🎓 Study Buddy Roulette
+# Study Buddy Roulette (MERN Stack)
 
-**Study Buddy Roulette** is a peer-to-peer learning platform that connects students who **need help** with students who **can help**.
-
-Instead of randomly searching for someone to study with, the platform finds suitable study buddies based on factors such as **skills, availability, location, and online/offline study preference**.
-
-The project was developed using **React, Vite, and Firebase**.
-
----
-## 🌐 Live Demo
-
-🚀 [Open Study Buddy Roulette](https://study-buddy-roulette.web.app)
-
-## 🌟 Overview
-
-Students often need help with a particular subject or skill but may not know who among their peers can help them.
-
-Study Buddy Roulette solves this problem by allowing students to create profiles containing their skills and availability. A student can search for help, and the application evaluates available users and recommends suitable study buddies using a matching algorithm.
-
-After finding a buddy, users can send study requests, communicate through chat, manage study sessions, join online sessions, provide ratings, and view their previous study activity.
+Study Buddy Roulette is a collaborative student study-matching web application built on the MERN stack (MongoDB, Express, React, Node.js). It connects students based on complementary skills, availability, and preferred study modes (online or offline), enabling seamless peer-to-peer tutoring, request management, Google Meet study sessions, chat, notifications, and session reviews.
 
 ---
 
-## ✨ Features
+## Features Currently Implemented
 
-### 🔐 Authentication
+- **Authentication & Secure Email Verification:**
+  - Email and password registration with bcryptjs password hashing.
+  - JWT token generation, persistent session management, and protected routes.
+  - Two-step email verification: expiring single-use cryptographic tokens (SHA-256 hashed in database), Nodemailer SMTP integration, and email-link scanner protection (POST-only verification action).
+  - Rate-limited resend verification endpoint with generic responses to prevent user enumeration.
+- **Student Profiles & Completion Tracking:**
+  - Profile customization: academic bio, "Can Help With" skills, "Need Help With" subjects, availability slots, and study mode preferences.
+  - Real-time profile completion progress indicator and guidance.
+- **Intelligent Buddy Matching:**
+  - Automated compatibility scoring matching learners with tutors who possess complementary skills.
+  - Subject normalization, alias matching (e.g., DSA, ML, Node.js), and availability alignment.
+  - Exclusion of self-matching and offline-only filtering for online searches.
+- **Study Request Workflow:**
+  - Send direct study requests to matched buddies with customizable subject and notes.
+  - Manage incoming and outgoing study requests (Accept / Reject).
+- **Study Sessions & Google Meet Integration:**
+  - Automatic session creation upon request acceptance.
+  - Support for both Online and In-Person study modes.
+  - **Google Meet Workflow:**
+    1. The tutor creates a Google Meet meeting separately via Google Meet.
+    2. The tutor pastes and saves the valid HTTPS Google Meet URL (`https://meet.google.com/xxx-xxxx-xxx`) into the session card.
+    3. The meeting URL updates dynamically, allowing both the tutor and learner to join directly.
+  - Session status lifecycle: `upcoming` &rarr; `live` &rarr; `completed` (or `cancelled`).
+- **Real-Time Polling Chat & Notifications:**
+  - In-session messaging between matched study partners with unread message indicators.
+  - Notification drawer alerting users to requests, accepted sessions, and message updates.
+- **Session Ratings & History:**
+  - Rate study sessions (1-5 stars) and leave peer reviews.
+  - Historical session logs tracking completed hours, partners, and study topics.
 
-- User registration and login
-- Firebase Authentication
-- Email verification
-- Protected application routes
-- Unique Firebase UID for every user
+---
 
-### 👤 Student Profiles
+## Technology Stack
 
-Users can maintain information such as:
+- **Frontend:**
+  - React 19
+  - Vite 8
+  - React Router v7
+  - Lucide React (Icons)
+  - Vanilla CSS & CSS Modules (Orange & White Theme)
+  - Axios (HTTP client with JWT request interceptors)
+- **Backend:**
+  - Node.js (ES Modules)
+  - Express 4
+  - MongoDB Atlas & Mongoose 8
+  - JSON Web Tokens (`jsonwebtoken`)
+  - Password Hashing (`bcryptjs`)
+  - Email Dispatch (`nodemailer`)
+  - CORS & Dotenv
 
-- Name
-- Skills
-- Subjects they can help with
-- Subjects they need help with
-- Availability
-- Location
-- Online / Offline study preference
+---
 
-### 🔎 Find Buddy
+## Actual Project Structure
 
-Students can search for suitable study partners based on their learning requirements.
-
-The system compares users using factors such as:
-
-- Skill compatibility
-- Availability
-- Location
-- Preferred study mode
-
-Suitable users are then displayed along with a **matching percentage**.
-
-### 🎯 Smart Matching Algorithm
-
-Study Buddy Roulette contains a custom matching algorithm that evaluates compatibility between students.
-
-The matching process considers:
-
-```text
-Skills
-   +
-Availability
-   +
-Location
-   +
-Online / Offline Preference
-   ↓
-Compatibility Score
-   ↓
-Best Study Buddy Matches
 ```
-
-The matching logic is implemented inside:
-
-```text
-src/utils/matchingAlgorithm.js
-```
-
-### 📨 Study Requests
-
-Students can:
-
-- Send study requests
-- Receive incoming requests
-- Accept requests
-- Reject requests
-- Track request status
-
-Request information is stored and synchronized using **Cloud Firestore**.
-
-### 📚 Study Sessions
-
-After a request is accepted, students can manage a study session.
-
-The session system supports:
-
-- Active sessions
-- Session status tracking
-- Session completion
-- Session cancellation
-- Online meeting links
-- Learner and helper-specific actions
-
-### 💬 Real-Time Chat
-
-Matched students can communicate through the built-in chat system.
-
-Messages are stored in **Cloud Firestore**, allowing the application to update conversations in real time.
-
-### 🎥 Online Study Sessions
-
-For online sessions, Study Buddy supports meeting links such as **Google Meet**.
-
-```text
-Study Request
-      ↓
-Accepted
-      ↓
-Online Session
-      ↓
-Google Meet Link
-      ↓
-Student joins session
-```
-
-### ⭐ Ratings
-
-After completing a study session, learners can rate the student who helped them.
-
-Ratings help maintain feedback about previous study experiences.
-
-### 🔔 Notifications
-
-The application includes notifications for important events such as:
-
-- New study requests
-- Accepted requests
-- Rejected requests
-- Session updates
-- Study-related activity
-
-The interface also includes notification badge counts and **Mark All as Read** functionality.
-
-### 📜 Study History
-
-Users can view their previous completed study sessions and related information through the Study History page.
-
----
-
-# 🏗️ System Architecture
-
-Study Buddy Roulette uses a **serverless Firebase architecture**.
-
-```text
-                    ┌──────────────────────┐
-                    │        User          │
-                    │       Browser        │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-              ┌─────────────────────────────┐
-              │        React + Vite         │
-              │                             │
-              │  Authentication             │
-              │  Profiles                   │
-              │  Find Buddy                 │
-              │  Matching Algorithm         │
-              │  Requests                   │
-              │  Sessions                   │
-              │  Chat                       │
-              │  Ratings                    │
-              │  Notifications              │
-              │  Study History              │
-              └──────────────┬──────────────┘
-                             │
-                       Firebase SDK
-                             │
-               ┌─────────────┴─────────────┐
-               │                           │
-               ▼                           ▼
-      ┌─────────────────┐        ┌──────────────────┐
-      │ Firebase Auth   │        │ Cloud Firestore  │
-      │                 │        │                  │
-      │ Registration    │        │ Users            │
-      │ Login           │        │ Requests         │
-      │ Email Verify    │        │ Sessions         │
-      │ User Identity   │        │ Messages         │
-      └─────────────────┘        │ Ratings          │
-                                 │ Notifications    │
-                                 └────────┬─────────┘
-                                          │
-                                          ▼
-                               ┌────────────────────┐
-                               │ Firebase Hosting   │
-                               │                    │
-                               │ Deployed Web App   │
-                               └────────────────────┘
-```
-
-Unlike a traditional architecture, Study Buddy does not require a separate Express or Node.js backend server.
-
-The React application communicates directly with Firebase using the **Firebase JavaScript SDK**.
-
----
-
-# 🛠️ Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| React.js | Frontend application |
-| Vite | Development and build tool |
-| JavaScript / JSX | Application logic |
-| CSS | User interface styling |
-| Firebase Authentication | Login and user authentication |
-| Cloud Firestore | Database and real-time data |
-| Firebase Hosting | Web application deployment |
-| Firebase SDK | Communication between React and Firebase |
-| Google Meet | Online study sessions |
-| Git | Version control |
-| GitHub | Source code hosting |
-| npm | Package management |
-
----
-
-# 📁 Project Structure
-
-```text
-StudyBuddy/
-│
-├── public/
-│
+D:\Users\CHAVAN\FSD2/
+├── index.html                           # Canonical Vite HTML entry point
+├── vite.config.js                       # Vite build configuration
+├── package.json                         # Frontend dependencies and scripts
+├── package-lock.json                    # Frontend lockfile
+├── .gitignore                           # Root Git ignore rules
+├── .env.example                         # Frontend environment template
+├── .env                                 # [Private] Local frontend environment variables
+├── public/                              # Static public assets
 ├── src/
-│   │
-│   ├── assets/
-│   │
-│   ├── components/
-│   │   ├── AuthForm.jsx
-│   │   ├── AvailabilityInput.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── FindBuddyForm.jsx
-│   │   ├── HistoryCard.jsx
-│   │   ├── MatchBreakdown.jsx
-│   │   ├── MatchCard.jsx
-│   │   ├── Navbar.jsx
-│   │   ├── NotificationPanel.jsx
-│   │   ├── ProtectedRoute.jsx
-│   │   ├── RatingModal.jsx
-│   │   ├── RequestCard.jsx
-│   │   ├── RouletteAnimation.jsx
-│   │   ├── SessionCard.jsx
-│   │   ├── Sidebar.jsx
-│   │   └── SkillInput.jsx
-│   │
-│   ├── pages/
-│   │   ├── AuthPage.jsx
-│   │   ├── ChatPage.jsx
-│   │   ├── DashboardPage.jsx
-│   │   ├── FindBuddyPage.jsx
-│   │   ├── ProfilePage.jsx
-│   │   ├── RequestsPage.jsx
-│   │   ├── SessionsPage.jsx
-│   │   └── StudyHistoryPage.jsx
-│   │
-│   ├── services/
-│   │   ├── chatService.js
-│   │   ├── notificationService.js
-│   │   ├── ratingService.js
-│   │   ├── requestService.js
-│   │   ├── sessionService.js
-│   │   └── userService.js
-│   │
-│   ├── utils/
-│   │   ├── dateUtils.js
-│   │   ├── matchingAlgorithm.js
-│   │   └── timeUtils.js
-│   │
-│   ├── styles/
-│   │
-│   ├── App.jsx
-│   ├── App.css
-│   ├── firebase.js
-│   ├── index.css
-│   └── main.jsx
-│
-├── .env.example
-├── .firebaserc
-├── .gitignore
-├── firebase.json
-├── index.html
-├── package.json
-├── package-lock.json
-├── README.md
-└── vite.config.js
+│   ├── assets/                          # React SVGs and media
+│   ├── components/                      # Modular UI components
+│   │   ├── ActiveSessionCard.jsx        # Live session details & Google Meet link interface
+│   │   ├── BuddyCard.jsx                # Buddy card with match score percentage
+│   │   ├── BuddyDetailsModal.jsx        # Detailed profile & study request dialog
+│   │   ├── ChatDrawer.jsx               # In-session chat drawer
+│   │   ├── ErrorState.jsx               # Global error alert
+│   │   ├── FeedbackModal.jsx            # Star ratings and feedback submission
+│   │   ├── LoadingSkeleton.jsx          # UI loading skeletons
+│   │   ├── Navbar.jsx                   # Global navigation bar
+│   │   ├── NotificationDropdown.jsx     # Notifications list & mark-read
+│   │   ├── NotificationToast.jsx        # Notification toasts
+│   │   ├── ProtectedRoute.jsx           # JWT & verification route protection
+│   │   ├── SessionHistoryCard.jsx       # Completed session card
+│   │   └── VerificationScreen.jsx       # Two-step email token verification screen
+│   ├── pages/                           # Main view pages
+│   │   ├── AuthPage.jsx                 # Login and Registration
+│   │   ├── DashboardPage.jsx            # Student dashboard and stats
+│   │   ├── FindBuddyPage.jsx            # Buddy matching and search filters
+│   │   ├── HistoryPage.jsx              # Study history and past reviews
+│   │   ├── ProfilePage.jsx              # Profile, skills, and availability editor
+│   │   └── RequestsPage.jsx             # Study request management
+│   ├── services/                        # API client services
+│   │   ├── apiClient.js                 # Axios instance with auth interceptor
+│   │   ├── authService.js               # Auth & email verification API client
+│   │   ├── chatService.js               # Chat endpoints API client
+│   │   ├── notificationService.js       # Notifications API client
+│   │   ├── sessionService.js            # Study session & Meet link API client
+│   │   └── userService.js               # Buddy matching & profile API client
+│   ├── styles/                          # Component stylesheets
+│   ├── utils/                           # Helper utilities (avatars, mock data)
+│   ├── App.jsx                          # Main router and auth context
+│   ├── App.css                          # Application-level styling
+│   ├── index.css                        # Global typography and base styles
+│   └── main.jsx                         # Application entry point
+├── backend/
+│   ├── package.json                     # Backend dependencies and test scripts
+│   ├── package-lock.json                # Backend lockfile
+│   ├── .gitignore                       # Backend Git ignore rules
+│   ├── .env.example                     # Backend environment template
+│   ├── .env                             # [Private] Local backend environment variables
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── db.js                    # MongoDB Atlas connection handler
+│   │   ├── controllers/
+│   │   │   ├── authController.js        # Auth, register, login, verify, token refresh
+│   │   │   ├── chatController.js        # Message exchange & room history
+│   │   │   ├── notificationController.js# User notifications
+│   │   │   ├── reviewController.js      # Session ratings & reviews
+│   │   │   ├── sessionController.js     # Sessions & Google Meet URL management
+│   │   │   └── userController.js        # Profiles & matching algorithm handler
+│   │   ├── middleware/
+│   │   │   ├── authMiddleware.js        # JWT Bearer token validator
+│   │   │   ├── errorHandler.js          # Centralized error handler
+│   │   │   └── validationMiddleware.js  # Request validation
+│   │   ├── models/
+│   │   │   ├── ChatRoom.js              # Chat room schema
+│   │   │   ├── Message.js               # Message schema
+│   │   │   ├── Notification.js          # Notification schema
+│   │   │   ├── Review.js                # Review schema
+│   │   │   ├── Session.js               # Study session schema
+│   │   │   └── User.js                  # User, profile, and verification token schema
+│   │   ├── routes/                      # API route definitions
+│   │   │   ├── authRoutes.js            # /api/auth
+│   │   │   ├── chatRoutes.js            # /api/chat
+│   │   │   ├── notificationRoutes.js    # /api/notifications
+│   │   │   ├── reviewRoutes.js          # /api/reviews
+│   │   │   ├── sessionRoutes.js         # /api/sessions
+│   │   │   └── userRoutes.js            # /api/users
+│   │   ├── services/
+│   │   │   └── emailService.js          # Nodemailer verification transporter
+│   │   ├── utils/
+│   │   │   └── matchingAlgorithm.js     # Matching and compatibility scoring
+│   │   └── server.js                    # Express app configuration & startup
+│   └── tests/                           # Automated backend test suites
+│       ├── test_matching_skills_bugfix.js       # Buddy matching regression suite
+│       ├── test_meet_link_bugfix.js             # Google Meet link workflow suite
+│       ├── test_phase3_suite.js                 # Requests & sessions suite
+│       ├── test_phase4_suite.js                 # Chat, reviews, & notifications suite
+│       ├── test_phase5_2_e2e_suite.js           # End-to-end user journey suite
+│       ├── test_phase5_3_suite.js               # Email verification suite
+│       ├── test_phase5_4_security_hardening.js  # Security hardening & rate-limiting suite
+│       └── test_smtp_diagnostic.js              # Safe SMTP connection diagnostic
+└── README.md
 ```
 
 ---
 
-# 🔄 Application Workflow
+## Prerequisites & Local Setup
 
-```text
-User Opens Study Buddy
-          ↓
-Register / Login
-          ↓
-Email Verification
-          ↓
-Complete Profile
-          ↓
-Add Skills & Availability
-          ↓
-Choose Need Help / Can Help
-          ↓
-Find Buddy
-          ↓
-Matching Algorithm
-          ↓
-Best Matches Displayed
-          ↓
-Send Study Request
-          ↓
-Helper Accepts Request
-          ↓
-Study Session Created
-          ↓
-Chat / Online Meeting
-          ↓
-Session Completed
-          ↓
-Learner Gives Rating
-          ↓
-Session Added to Study History
-```
+- **Node.js:** v18.0.0 or higher
+- **npm:** v9.0.0 or higher
+- **MongoDB Atlas:** A MongoDB Atlas cluster database URI
+- **SMTP Provider (Optional for local testing, required for real emails):** Gmail App Password or Mailtrap account
 
 ---
 
-# 🔥 Firebase Services
+## Environment Configuration
 
-## Firebase Authentication
-
-Firebase Authentication is used for:
-
-```text
-Registration
-Login
-Email Verification
-User Identification
-Protected Access
-```
-
-Each user receives a unique Firebase UID that is used to associate the user with their Firestore data.
-
----
-
-## Cloud Firestore
-
-Cloud Firestore acts as the primary database for the application.
-
-It stores information related to:
-
-```text
-Users
-Study Requests
-Study Sessions
-Chats
-Ratings
-Notifications
-Study History
-```
-
-Firestore's real-time capabilities are also used for features such as chat and live application updates.
-
----
-
-## Firebase Hosting
-
-The production React application is deployed using Firebase Hosting.
-
-The deployment process is approximately:
-
-```bash
-npm run build
-firebase deploy
-```
-
-Vite generates the production build inside the:
-
-```text
-dist/
-```
-
-directory, which Firebase Hosting then serves to users.
-
----
-
-# 🔐 Security
-
-Firestore access is protected using Firebase Authentication.
-
-Only authenticated users are allowed to access application data.
-
-Example Firestore rule:
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-
-  }
-}
-```
-
-> For a full production deployment, collection-level and user-specific security rules should be implemented for stronger access control.
-
----
-
-# ⚙️ Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/Chavan-45/Study-Buddy-Roulette.git
-```
-
-Move into the project directory:
-
-```bash
-cd Study-Buddy-Roulette
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Create a `.env` file using `.env.example` as reference.
-
-Example:
-
+### Frontend (`.env`)
+Create `.env` in the project root:
 ```env
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+VITE_API_URL=http://localhost:5000/api
 ```
 
-Run the development server:
+### Backend (`backend/.env`)
+Create `backend/.env` based on `backend/.env.example`:
+```env
+PORT=5000
+NODE_ENV=development
 
+# MongoDB Atlas URI (Use your actual Atlas credentials)
+MONGO_URI=mongodb+srv://<db_user>:<db_password>@cluster0.mongodb.net/study_buddy_roulette?retryWrites=true&w=majority
+
+# JWT Secret (Use a secure string of at least 32 characters)
+JWT_SECRET=your_jwt_secret_key_minimum_32_characters_here
+JWT_EXPIRES_IN=7d
+
+# URLs for CORS and Email Links
+CLIENT_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+
+# Nodemailer SMTP Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_16_character_app_password
+EMAIL_FROM="Study Buddy Roulette" <noreply@studybuddyroulette.edu>
+```
+
+> **Security Notice:** Never commit `.env` files to Git. Both root `.env` and `backend/.env` are ignored in `.gitignore`.
+
+---
+
+## Installation & Running the Application
+
+### 1. Backend Server Setup
+From the root directory:
 ```bash
+cd backend
+npm install
 npm run dev
 ```
+The Express backend starts on `http://localhost:5000`.
 
-The application will normally be available at:
-
-```text
-http://localhost:5173
+### 2. Frontend Client Setup
+Open a separate terminal in the root directory:
+```bash
+npm install
+npm run dev
 ```
-https://hackathon-c846d.web.app
+The Vite development server runs on `http://localhost:5173`.
+
 ---
 
-# 🧪 Production Build
+## Available Test Suites
 
-Create a production build using:
+All tests use safe disposable records and clean up after execution:
 
 ```bash
+cd backend
+
+# Test buddy matching & skill compatibility
+npm run test:matching
+
+# Test Google Meet link permissions & workflow
+npm run test:meet
+
+# Test security hardening (GET protection, atomic token consumption, DoS prevention)
+npm run test:security
+
+# Test email verification flows
+npm run test:verification
+
+# Run full end-to-end integration suite
+npm run test:e2e
+
+# Run safe SMTP diagnostic (masks credentials)
+npm run test:diagnostic
+```
+
+### Frontend Build & Lint Checks
+From the project root:
+```bash
+# Build production bundle
 npm run build
-```
 
-The generated production files will be placed inside:
-
-```text
-dist/
+# Run Oxlint
+npm run lint
 ```
 
 ---
 
-# 🎨 UI Design
+## Deployment Status
 
-Study Buddy Roulette uses a clean **Orange and White** interface designed around student usability.
-
-The application includes:
-
-```text
-Responsive dashboard
-Buddy matching cards
-Match percentage display
-Study request cards
-Session management
-Notification panel
-Rating modal
-Chat interface
-Study history
-Roulette-style matching animation
-```
-
----
-
-# 💡 Why Study Buddy Roulette?
-
-Traditional study groups often depend on students already knowing someone who can help them.
-
-Study Buddy Roulette introduces a structured peer-learning system where students can discover suitable helpers based on actual compatibility.
-
-The platform encourages:
-
-```text
-Peer-to-peer learning
-Skill sharing
-Student collaboration
-Accessible academic help
-Efficient buddy discovery
-Community-based learning
-```
-
----
-
-# 🚀 Future Improvements
-
-Possible future improvements include:
-
-- Advanced recommendation algorithms
-- AI-based buddy recommendations
-- Better location-based matching
-- Automated Google Meet creation
-- Push notifications
-- Group study sessions
-- Tutor reputation system
-- Advanced analytics
-- Stronger Firestore role-based security
-- Mobile application support
-
----
-
-# 👨‍💻 Developed For
-
-Study Buddy Roulette was originally developed as a **hackathon project** focused on improving peer-to-peer student learning through smart buddy matching.
-
----
-
-# 📄 License
-
-This project is intended for educational and hackathon purposes.
-
----
-
-## ⭐ Support
-
-If you find this project useful, consider giving the repository a **star ⭐** on GitHub.
+> **Notice:** Deployment has **not** yet been performed. The application is configured and verified for local development and pre-deployment testing. Deployment will be addressed in a future phase.

@@ -19,7 +19,7 @@ import {
   getFriendlyErrorMessage 
 } from '../services/authService';
 
-export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
+export default function AuthForm({ onLoginSuccess, onRequireVerification: _onRequireVerification }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -150,15 +150,9 @@ export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
         password: regData.password
       });
 
-      if (regRes?.verificationEmailSent === false) {
-        setGlobalError(
-          "Account created, but verification email could not be sent. Please log in and click 'Resend Verification Email'."
-        );
-      } else {
-        setGlobalSuccess(
-          "Account created successfully! You can now log in with your credentials."
-        );
-      }
+      setGlobalSuccess(
+        "Account created successfully! Welcome to Study Buddy Roulette."
+      );
 
       setRegData({
         name: '',
@@ -168,9 +162,11 @@ export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
         confirmPassword: ''
       });
 
-      setTimeout(() => {
+      if (regRes?.user && onLoginSuccess) {
+        onLoginSuccess(regRes.user);
+      } else {
         setActiveTab('login');
-      }, 4000);
+      }
     } catch (err) {
       console.error("Registration error:", err);
       setGlobalError(getFriendlyErrorMessage(err));
@@ -190,13 +186,8 @@ export default function AuthForm({ onLoginSuccess, onRequireVerification }) {
 
     try {
       const user = await loginUser(loginData.email.trim(), loginData.password);
-      
-      if (user.emailVerified) {
-        await createFirestoreDocIfVerified(user);
-        onLoginSuccess(user);
-      } else {
-        onRequireVerification(user);
-      }
+      await createFirestoreDocIfVerified(user);
+      onLoginSuccess(user);
     } catch (err) {
       console.error("Login error:", err);
       setGlobalError(getFriendlyErrorMessage(err));

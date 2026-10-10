@@ -35,7 +35,7 @@ export default function App() {
         <Route
           path="/"
           element={
-            currentUser && currentUser.emailVerified ? (
+            currentUser ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <AuthPage

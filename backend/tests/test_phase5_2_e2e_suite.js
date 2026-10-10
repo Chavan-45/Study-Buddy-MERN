@@ -84,10 +84,10 @@ async function runE2EIntegrationTests() {
     tokenB = regResB.token;
     userB = regResB.user;
 
-    // Verify emailVerified defaults to false as required by auth flow
-    const emailVerifiedDefault = userA.emailVerified === false && userB.emailVerified === false;
+    // Verify accounts are active upon registration (no mandatory verification required)
+    const emailVerifiedDefault = userA.emailVerified === true && userB.emailVerified === true;
     report('1.1', 'Register two test accounts in MongoDB Atlas', regPassed, `User A: ${userA?.uid}, User B: ${userB?.uid}`);
-    report('1.2', 'Confirm emailVerified is initially false on registration', emailVerifiedDefault, 'Both accounts created with emailVerified: false');
+    report('1.2', 'Confirm registered accounts are active without verification gatekeeping', emailVerifiedDefault, 'Both accounts created with active status');
 
     // Test explicit Login endpoint
     const loginResA = await (await fetch(`${BASE_URL}/auth/login`, {

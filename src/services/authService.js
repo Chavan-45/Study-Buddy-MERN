@@ -15,7 +15,7 @@ export function formatAuthUser(user) {
     ...user,
     uid: user.uid || user._id,
     displayName: user.displayName || user.name || 'Student',
-    emailVerified: Boolean(user.emailVerified),
+    emailVerified: user.emailVerified !== undefined ? Boolean(user.emailVerified) : true,
   };
 }
 
@@ -45,9 +45,6 @@ export async function registerUser({ name, email, phone, password }) {
 
   const user = formatAuthUser(response?.user);
   if (user) {
-    if (response?.verificationEmailSent !== undefined) {
-      user.verificationEmailSent = response.verificationEmailSent;
-    }
     setStoredUser(user);
     window.dispatchEvent(new CustomEvent('study_buddy_auth_changed', { detail: user }));
   }
@@ -55,7 +52,6 @@ export async function registerUser({ name, email, phone, password }) {
   return {
     user,
     uid: user?.uid,
-    verificationEmailSent: response?.verificationEmailSent,
     message: response?.message,
   };
 }

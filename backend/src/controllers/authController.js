@@ -15,11 +15,15 @@ const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds rate limit between email req
  * @route   POST /api/auth/register
  * @access  Public
  */
+/**
+ * @desc    Register a new student account
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
 export async function register(req, res, next) {
   try {
     const { name, email, phone, password } = req.body;
 
-    // 1. Validate presence of required registration fields
     if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
@@ -50,7 +54,6 @@ export async function register(req, res, next) {
       });
     }
 
-    // Explicit minimum 8-character password length constraint
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
@@ -58,8 +61,8 @@ export async function register(req, res, next) {
       });
     }
 
-    // Clean phone number
     const cleanPhone = (phone || '').trim();
+
     if (!cleanPhone) {
       return res.status(400).json({
         success: false,
@@ -67,64 +70,36 @@ export async function register(req, res, next) {
       });
     }
 
-    // 2. Check for duplicate account
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    // Reject duplicate email addresses.
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: 'An account with this email address already exists. Try logging in instead.',
+        message:
+          'An account with this email address already exists. Please log in instead.',
       });
     }
 
-    // 3. Create user in MongoDB Atlas (password is hashed by User pre-save hook)
-    const userData = {
+    // Create an active account without requiring email verification.
+    // Password hashing remains handled by the User model.
+    const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       phone: cleanPhone,
       password,
-      emailVerified: false,
-    };
+      emailVerified: true,
+    });
 
-    let user;
-    let verificationEmailSent = false;
-    let emailDeliveryError = null;
-
-    // If SMTP is configured, generate token and dispatch email
-    if (isSmtpConfigured()) {
-      try {
-        const { rawToken, tokenHash, expiresAt } = generateVerificationToken();
-        userData.verificationTokenHash = tokenHash;
-        userData.verificationTokenExpires = expiresAt;
-        userData.lastVerificationEmailSentAt = new Date();
-
-        user = await User.create(userData);
-        await sendVerificationEmail(user.email, user.name, rawToken);
-        verificationEmailSent = true;
-      } catch (err) {
-        console.error('Initial verification email send skipped/failed:', err.message);
-        emailDeliveryError = err.message;
-        // Fallback: create user without active token if send fails
-        if (!user) {
-          user = await User.create(userData);
-        }
-      }
-    } else {
-      user = await User.create(userData);
-    }
-
-    // 4. Generate JWT
     const token = generateToken(user._id);
 
-    // 5. Return safe user profile and token
     return res.status(201).json({
       success: true,
-      message: verificationEmailSent
-        ? 'Account registered successfully. A verification link has been sent to your email.'
-        : 'Account registered successfully.',
+      message: 'Account registered successfully. You can now log in.',
       token,
-      user: { ...user.toJSON(), verificationEmailSent },
-      verificationEmailSent,
-      emailDeliveryError: verificationEmailSent ? undefined : emailDeliveryError,
+      user: user.toJSON(),
     });
   } catch (error) {
     next(error);

@@ -13,33 +13,27 @@ export default function AuthPage({ currentUser, setCurrentUser }) {
       return 'verification';
     }
     if (currentUser) {
-      return currentUser.emailVerified ? 'dashboard' : 'verification';
+      return 'dashboard';
     }
     return 'auth';
   });
 
   const [unverifiedUser, setUnverifiedUser] = useState(null);
 
-  // If currentUser is already verified, immediately navigate to dashboard
+  // If currentUser is already logged in and not verifying an explicit token link, navigate to dashboard
   useEffect(() => {
-    if (currentUser && currentUser.emailVerified && !tokenParam) {
+    if (currentUser && !tokenParam) {
       navigate('/dashboard', { replace: true });
     }
   }, [currentUser, tokenParam, navigate]);
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    if (user.emailVerified) {
-      navigate('/dashboard', { replace: true });
-    } else {
-      setUnverifiedUser(user);
-      setViewState('verification');
-    }
+    navigate('/dashboard', { replace: true });
   };
 
   const handleRequireVerification = (user) => {
-    setUnverifiedUser(user);
-    setViewState('verification');
+    handleLoginSuccess(user);
   };
 
   const handleBackToLogin = () => {
@@ -54,9 +48,7 @@ export default function AuthPage({ currentUser, setCurrentUser }) {
     if (verifiedUser) {
       setCurrentUser(verifiedUser);
     }
-    if (verifiedUser?.emailVerified) {
-      navigate('/dashboard', { replace: true });
-    }
+    navigate('/dashboard', { replace: true });
   };
 
   return (
@@ -83,7 +75,6 @@ export default function AuthPage({ currentUser, setCurrentUser }) {
           {viewState === 'auth' && (
             <AuthForm
               onLoginSuccess={handleLoginSuccess}
-              onRequireVerification={handleRequireVerification}
             />
           )}
 

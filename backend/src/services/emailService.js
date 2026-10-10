@@ -1,89 +1,15 @@
-import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { Resend } from 'resend';
 
-/**
- * Returns sanitized SMTP configuration parameters
- * Strips accidental quotes, leading/trailing whitespace, and internal spaces in app passwords
- */
-export function getSanitizedSmtpConfig() {
-  const host = (process.env.SMTP_HOST || '').trim();
-  const rawPort = String(process.env.SMTP_PORT || '587').trim();
-  const port = parseInt(rawPort, 10);
-  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
 
-  let user = (process.env.SMTP_USER || '').trim();
-  user = user.replace(/^['"]|['"]$/g, '');
-
-  let pass = (process.env.SMTP_PASS || '').trim();
-  pass = pass.replace(/^['"]|['"]$/g, '').replace(/\s+/g, '');
-
-  return { host, port, secure, user, pass };
-}
 
 /**
  * Checks whether SMTP server credentials and host are fully configured
  */
+// Kept under its existing name for compatibility
+// with the registration controller.
 export function isSmtpConfigured() {
-  const config = getSanitizedSmtpConfig();
-  return Boolean(config.host && config.user && config.pass);
-}
-
-/**
- * Creates and returns a configured Nodemailer transport
- * Preserves standard TLS validation (never disables certificate verification)
- */
-export function createEmailTransporter() {
-  if (!isSmtpConfigured()) {
-    return null;
-  }
-
-  const { host, port, secure, user, pass } = getSanitizedSmtpConfig();
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: {
-      user,
-      pass,
-    },
-  });
-}
-
-/**
- * Performs a safe SMTP connection & authentication check via Nodemailer's verify()
- * Never exposes credentials and does not dispatch any email.
- */
-export async function verifySmtpConnection() {
-  if (!isSmtpConfigured()) {
-    return {
-      configured: false,
-      authenticated: false,
-      message: 'SMTP credentials or host are missing from environment.',
-    };
-  }
-
-  const transporter = createEmailTransporter();
-  try {
-    await transporter.verify();
-    return {
-      configured: true,
-      authenticated: true,
-      message: 'SMTP authentication and connection verified successfully.',
-    };
-  } catch (error) {
-    const isAuthError =
-      error.responseCode === 535 ||
-      /invalid credentials|authentication failed|auth/i.test(error.message);
-
-    return {
-      configured: true,
-      authenticated: false,
-      code: isAuthError ? 'SMTP_AUTH_FAILED' : 'SMTP_CONNECTION_FAILED',
-      responseCode: error.responseCode,
-      message: error.message,
-    };
-  }
+  return Boolean(process.env.RESEND_API_KEY?.trim());
 }
 
 /**
@@ -116,55 +42,79 @@ export function hashVerificationToken(rawToken) {
 /**
  * Dispatches an email containing the verification link
  * Throws an explicit configuration error if SMTP is unavailable
+/**
+ * Sends the verification email using Resend's HTTPS API.
  */
 export async function sendVerificationEmail(recipientEmail, recipientName, rawToken) {
-  if (!isSmtpConfigured()) {
-    const error = new Error('SMTP email transport is not configured on the server.');
-    error.code = 'SMTP_NOT_CONFIGURED';
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+
+  if (!apiKey) {
+    const error = new Error('Resend API key is not configured.');
+    error.code = 'RESEND_NOT_CONFIGURED';
     throw error;
   }
 
-  const transporter = createEmailTransporter();
-  const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
-  const verificationUrl = `${frontendUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
-  const sender = process.env.EMAIL_FROM || '"Study Buddy Roulette" <noreply@studybuddyroulette.edu>';
+  const resend = new Resend(apiKey);
 
-  const mailOptions = {
-    from: sender,
-    to: recipientEmail,
+  const frontendUrl = (
+    process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    'http://localhost:5173'
+  ).replace(/\/+$/, '');
+
+  const verificationUrl =
+    `${frontendUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
+
+  const recipientNameSafe = recipientName || 'Student';
+
+  const text = `Hello ${recipientNameSafe},
+
+Thank you for signing up for Study Buddy Roulette! Please verify your email address using the link below:
+
+${verificationUrl}
+
+This verification link will expire in 24 hours.
+
+If you did not register, you can safely ignore this email.
+
+Best regards,
+The Study Buddy Roulette Team`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:24px;border:1px solid #fed7aa;border-radius:12px;background:#fff">
+      <h2 style="color:#ea580c">Study Buddy Roulette 🎲</h2>
+      <p>Hello <strong>${recipientNameSafe}</strong>,</p>
+      <p>Thank you for signing up! Please verify your email address to unlock your account and start discovering study partners.</p>
+      <p style="text-align:center;margin:28px 0">
+        <a href="${verificationUrl}" style="background:#ea580c;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">
+          Verify Email Address
+        </a>
+      </p>
+      <p style="font-size:13px;color:#64748b">
+        If the button doesn't work, copy this link into your browser:
+        <a href="${verificationUrl}">${verificationUrl}</a>
+      </p>
+      <p style="font-size:12px;color:#94a3b8">This link expires in 24 hours.</p>
+    </div>
+  `;
+
+  const { data, error } = await resend.emails.send({
+    from: 'Study Buddy Roulette <onboarding@resend.dev>',
+    to: [recipientEmail],
     subject: 'Verify your Study Buddy Roulette email address 🎲',
-    text: `Hello ${recipientName || 'Student'},\n\nThank you for signing up for Study Buddy Roulette! Please verify your university email address by clicking the link below:\n\n${verificationUrl}\n\nThis verification link will expire in 24 hours.\n\nIf you did not register, you can safely ignore this email.\n\nBest regards,\nThe Study Buddy Roulette Team`,
-    html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #fed7aa; border-radius: 12px; background-color: #ffffff;">
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-          <h2 style="color: #ea580c; margin: 0; font-size: 22px;">Study Buddy Roulette 🎲</h2>
-        </div>
-        <p style="font-size: 16px; color: #1e293b; margin-top: 0;">
-          Hello <strong>${recipientName || 'Student'}</strong>,
-        </p>
-        <p style="font-size: 15px; color: #475569; line-height: 1.6;">
-          Thank you for signing up! Please verify your email address to unlock your account and start discovering study partners across campus.
-        </p>
-        <div style="margin: 28px 0; text-align: center;">
-          <a href="${verificationUrl}" style="background-color: #ea580c; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
-            Verify Email Address
-          </a>
-        </div>
-        <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
-          If the button above does not work, copy and paste this URL into your browser:<br/>
-          <a href="${verificationUrl}" style="color: #ea580c; word-break: break-all;">${verificationUrl}</a>
-        </p>
-        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">
-          This link will expire in 24 hours. If you did not create an account on Study Buddy Roulette, please disregard this email.
-        </p>
-      </div>
-    `,
-  };
+    text,
+    html,
+  });
 
-  const info = await transporter.sendMail(mailOptions);
+  if (error) {
+    console.error('Resend delivery failed:', error.name, error.message);
+    const sendError = new Error(`Resend delivery failed: ${error.message}`);
+    sendError.code = 'RESEND_DELIVERY_FAILED';
+    throw sendError;
+  }
+
   return {
     success: true,
-    messageId: info.messageId,
+    messageId: data?.id,
   };
 }

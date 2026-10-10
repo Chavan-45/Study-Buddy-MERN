@@ -59,7 +59,7 @@ const healthHandler = (req, res) => {
     service: 'Study Buddy Roulette Backend API',
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV || 'production',
     database: {
       status: dbStatus.status,
       connected: dbStatus.isConnected,
